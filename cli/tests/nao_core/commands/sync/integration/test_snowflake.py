@@ -37,10 +37,15 @@ SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE")
 # Default auth method:
 # - Prefer password if available (easier to set up locally)
 # - Fall back to key-pair, then PAT
-SNOWFLAKE_AUTH_METHOD = (
-    os.environ.get("SNOWFLAKE_AUTH_METHOD")
-    or ("password" if SNOWFLAKE_PASSWORD else ("keypair" if SNOWFLAKE_PRIVATE_KEY_PATH else "pat"))
-).lower()
+SNOWFLAKE_AUTH_METHOD = os.environ.get("SNOWFLAKE_AUTH_METHOD")
+if not SNOWFLAKE_AUTH_METHOD:
+    if SNOWFLAKE_PASSWORD:
+        SNOWFLAKE_AUTH_METHOD = "password"
+    elif SNOWFLAKE_PRIVATE_KEY_PATH:
+        SNOWFLAKE_AUTH_METHOD = "keypair"
+    else:
+        SNOWFLAKE_AUTH_METHOD = "pat"
+SNOWFLAKE_AUTH_METHOD = SNOWFLAKE_AUTH_METHOD.lower()
 if SNOWFLAKE_AUTH_METHOD not in {"password", "keypair", "pat"}:
     SNOWFLAKE_AUTH_METHOD = "password" if SNOWFLAKE_PASSWORD else "keypair"
 
@@ -109,6 +114,9 @@ def _ibis_connect(*, database: str | None = None):
 
     if SNOWFLAKE_AUTH_METHOD == "password":
         kwargs["password"] = SNOWFLAKE_PASSWORD
+    elif SNOWFLAKE_AUTH_METHOD == "pat":
+        kwargs["authenticator"] = "programmatic_access_token"
+        kwargs["token"] = SNOWFLAKE_TOKEN
     else:
         kwargs["private_key"] = _private_key_bytes_from_env()
 
